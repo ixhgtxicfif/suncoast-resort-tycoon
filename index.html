@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suncoast - Resort Tycoon</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    /* Thin custom scrollbars */
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:#0a1e3a}
+    ::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:#555}
+    *{scrollbar-width:thin;scrollbar-color:#333 #0a1e3a}
+    body{font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:10px;overflow-x:hidden}
+    #app{background:#16213e;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,0.5);overflow:hidden;max-width:1280px;width:100%}
+
+    #hud{background:linear-gradient(90deg,#0f3460,#16213e);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:2px solid #e94560}
+    .hud-left{display:flex;gap:10px;align-items:center}
+    .hud-metrics{display:flex;gap:12px}
+    .metric{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:80px}
+    .metric-label{font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px}
+    .metric-value{font-size:13px;font-weight:700}
+    .metric-bar{width:60px;height:5px;border-radius:3px;background:#1a1a2e;overflow:hidden}
+    .metric-bar-fill{height:100%;border-radius:3px;transition:width 0.3s}
+    .rep-row{display:flex;align-items:center;gap:3px;margin:1px 0;font-size:9px}
+    .rep-icon{width:12px;text-align:center;font-size:9px}
+    .rep-name{width:38px;color:#aaa;font-size:8px;text-transform:uppercase;letter-spacing:0.3px}
+    .rep-bar-bg{flex:1;height:4px;border-radius:2px;background:#1a1a2e;overflow:hidden;min-width:30px}
+    .rep-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;background:linear-gradient(90deg,#ff6b6b,#ffeaa7,#55efc4)}
+    .rep-val{width:18px;text-align:right;color:#ccc;font-size:8px;font-weight:600}
+    .hud-compact{display:flex;gap:10px;font-size:11px;color:#aaa;align-items:center}
+    .hud-compact span{display:flex;align-items:center;gap:3px}
+
+    .speed-controls{display:flex;gap:3px}
+    .speed-btn{padding:4px 9px;border:1px solid #555;border-radius:4px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:11px;font-weight:700;transition:all 0.15s}
+    .speed-btn:hover{background:#333}
+    .speed-btn.active{background:#e94560;color:#fff;border-color:#e94560}
+
+    #main-layout{display:flex;min-height:500px;overflow:hidden}
+
+    /* ── Panel collapse toggle buttons ── */
+    .panel-collapse-btn{z-index:10;width:16px;flex-shrink:0;border:none;background:#0a1e3a;color:#636e72;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;padding:0;writing-mode:vertical-lr}
+    .panel-collapse-btn:hover{background:#16213e;color:#fff}
+
+    /* ── Left Panel ── */
+    #left-panel{width:260px;flex-shrink:0;background:#0f3460;border-right:1px solid #333;overflow-y:auto;overflow-x:hidden;max-height:620px;transition:width 0.25s}
+    #left-panel.collapsed{width:0;min-width:0;overflow:hidden;border-right:none}
+    .panel-tabs{display:flex;border-bottom:1px solid #333}
+    .panel-tab{flex:1;padding:6px 3px;text-align:center;cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;color:#aaa;background:#0a1e3a;transition:all 0.15s;border:none;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:3px}
+    .panel-tab.active{color:#fff;background:#0f3460;border-bottom:2px solid #e94560}
+    .panel-tab:hover{color:#fff}
+    .panel-tab .tab-icon{font-size:11px}
+    .panel-content{padding:10px;display:none}
+    .panel-content.active{display:block}
+
+    .panel-title{font-size:12px;font-weight:700;color:#e94560;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px}
+    .category-tabs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px}
+    .cat-tab{padding:3px 7px;border:1px solid #444;border-radius:3px;background:#1a1a2e;color:#aaa;cursor:pointer;font-size:9px;text-transform:uppercase;transition:all 0.15s}
+    .cat-tab:hover{color:#fff}
+    .cat-tab.active{background:#e94560;color:#fff;border-color:#e94560}
+    .build-item{padding:7px;margin-bottom:5px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all 0.15s;background:#16213e}
+    .build-item:hover{border-color:#555}
+    .build-item.selected{border-color:#55efc4;background:#1a2e4a}
+    .build-item.cant-afford{opacity:0.45}
+    .build-name{font-size:11px;font-weight:600;margin-bottom:2px}
+    .build-info{font-size:9px;color:#aaa;line-height:1.4}
+    .build-cost{color:#55efc4;font-weight:700}
+    .build-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+
+    /* ── Missions ── */
+    .mission-item{padding:8px;margin-bottom:6px;border-radius:6px;background:#16213e;border-left:3px solid #636e72}
+    .mission-item.completed{border-left-color:#55efc4}
+    .mission-item.claimed{border-left-color:#636e72;opacity:0.5}
+    .mission-title{font-size:11px;font-weight:700;margin-bottom:2px}
+    .mission-desc{font-size:9px;color:#aaa;margin-bottom:4px}
+    .mission-reward{font-size:10px;color:#55efc4;font-weight:700}
+    .mission-claim{padding:3px 8px;border:none;border-radius:3px;background:#55efc4;color:#0f3460;font-size:9px;font-weight:700;cursor:pointer;margin-left:6px}
+    .mission-claim:hover{background:#00b894}
+
+    /* ── Events Log ── */
+    .event-item{padding:6px;margin-bottom:5px;border-radius:5px;background:#1a1a2e;border-left:3px solid #e94560;font-size:10px}
+    .event-title{font-weight:700;color:#ffeaa7;margin-bottom:2px}
+    .event-desc{color:#aaa;font-size:9px}
+
+    #canvas-container{flex:1;display:flex;justify-content:center;align-items:center;background:#0a0a1a;padding:4px;overflow:hidden;min-width:0}
+    canvas{border:1px solid #333;border-radius:6px;cursor:crosshair;max-width:100%;height:auto}
+
+    /* ── Right Info Panel ── */
+    #info-panel{width:200px;flex-shrink:0;background:#0f3460;padding:0;border-left:1px solid #333;font-size:12px;overflow-y:auto;overflow-x:hidden;max-height:620px;transition:width 0.25s}
+    #info-panel.collapsed{width:0;min-width:0;overflow:hidden;border-left:none}
+
+    /* Collapsible accordion sections */
+    .acc-section{border-bottom:1px solid #1a1a2e}
+    .acc-header{display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;transition:background 0.15s;gap:4px}
+    .acc-header:hover{background:#16213e}
+    .acc-toggle{font-size:7px;color:#636e72;flex-shrink:0;transition:transform 0.2s;width:10px}
+    .acc-section.open .acc-toggle{transform:rotate(90deg)}
+    .acc-icon{font-size:11px;flex-shrink:0}
+    .acc-title{font-size:9px;font-weight:700;color:#e94560;text-transform:uppercase;letter-spacing:0.3px;flex-shrink:0}
+    .acc-summary{font-size:10px;font-weight:600;margin-left:auto;white-space:nowrap;text-align:right;overflow:hidden;text-overflow:ellipsis}
+    .acc-body{display:none;padding:0 8px 6px 8px}
+    .acc-section.open .acc-body{display:block}
+
+    .info-row{display:flex;justify-content:space-between;margin-bottom:2px;font-size:10px}
+    .info-row .label{color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .info-row .value{font-weight:600;white-space:nowrap;flex-shrink:0;margin-left:4px}
+    .info-row .value.positive{color:#55efc4}
+    .info-row .value.negative{color:#ff6b6b}
+    .progress-bar{height:6px;border-radius:3px;background:#1a1a2e;overflow:hidden}
+    .progress-fill{height:100%;border-radius:3px;transition:width 0.3s}
+
+    /* Segment legend */
+    .segment-legend{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+    .seg-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+    .seg-item{display:flex;align-items:center;gap:2px;font-size:9px;color:#aaa}
+
+    /* Day pass compact */
+    .daypass-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+    .daypass-toggle{padding:2px 6px;border:1px solid #555;border-radius:3px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:9px;font-weight:700}
+    .daypass-toggle.on{background:#00b894;color:#fff;border-color:#00b894}
+    .daypass-price-input{width:40px;background:#1a1a2e;border:1px solid #555;border-radius:3px;color:#ffeaa7;font-size:10px;font-weight:700;padding:2px 4px;text-align:center}
+
+    /* Loans compact */
+    .loan-item{padding:5px;margin-bottom:3px;border-radius:4px;background:#1a1a2e;border-left:2px solid #ffa502;font-size:9px}
+    .loan-item .loan-name{font-weight:700;color:#ffeaa7}
+    .loan-item .loan-details{color:#aaa;font-size:8px;margin-top:1px}
+    .loan-repay-btn{padding:1px 5px;border:1px solid #55efc4;border-radius:3px;background:transparent;color:#55efc4;cursor:pointer;font-size:8px;font-weight:700;margin-top:2px}
+    .loan-repay-btn:hover{background:#55efc4;color:#0f3460}
+    .loan-take-btn{padding:3px 6px;border:1px solid #ffa502;border-radius:3px;background:transparent;color:#ffa502;cursor:pointer;font-size:9px;font-weight:600;margin:2px 0;width:100%;text-align:left;transition:all 0.15s}
+    .loan-take-btn:hover{background:#ffa502;color:#0f3460}
+    .loan-take-btn:disabled{opacity:0.3;cursor:not-allowed}
+    .debt-warning{color:#ff6b6b;font-size:9px;font-weight:700;padding:3px 5px;background:rgba(255,75,75,0.1);border-radius:3px;margin-bottom:3px;text-align:center}
+
+    /* ── Building Detail Panel ── */
+    #building-detail{display:none;padding:10px}
+    #building-detail.visible{display:block}
+
+    /* ── Staff Detail Panel ── */
+    #staff-detail{display:none;padding:10px}
+    #staff-detail.visible{display:block}
+    .staff-detail-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .staff-detail-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+    .staff-detail-name{color:#e2e2e2;font-weight:bold;font-size:12px}
+    .staff-detail-row{display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+    .staff-detail-row .label{color:#aaa}
+    .staff-detail-row .value{color:#e2e2e2;font-weight:600}
+    .staff-stat-highlight{font-size:18px;font-weight:bold;color:#55efc4;text-align:center;padding:8px 0}
+    .staff-stat-label{font-size:9px;color:#aaa;text-align:center;text-transform:uppercase}
+
+    /* ── Guest Detail Panel ── */
+    #guest-detail{display:none;padding:10px}
+    #guest-detail.visible{display:block}
+    .guest-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .guest-segment-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px}
+    .guest-name{color:#e2e2e2;font-weight:bold;font-size:12px}
+    .guest-vip-badge{background:#fdcb6e;color:#000;font-size:8px;font-weight:bold;padding:1px 4px;border-radius:3px;margin-left:4px}
+    .guest-info-row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0}
+    .guest-info-row .label{color:#aaa}
+    .guest-info-row .value{color:#e2e2e2;font-weight:600}
+    .guest-happiness-bar{height:6px;background:#333;border-radius:3px;overflow:hidden;margin:4px 0}
+    .guest-happiness-fill{height:100%;border-radius:3px;transition:width 0.3s}
+    .guest-needs-section{margin-top:8px}
+    .guest-needs-section h4{font-size:9px;color:#e94560;text-transform:uppercase;margin-bottom:4px}
+    .need-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+    .need-icon{width:14px;text-align:center;font-size:10px}
+    .need-label{width:42px;font-size:9px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .need-bar{flex:1;height:5px;background:#333;border-radius:2px;overflow:hidden}
+    .need-fill{height:100%;border-radius:2px;transition:width 0.3s}
+    .thought-log-section{margin-top:8px;max-height:180px;overflow-y:auto}
+    .thought-log-section h4{font-size:9px;color:#e94560;text-transform:uppercase;margin-bottom:4px}
+    .thought-entry{display:flex;gap:4px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:10px;align-items:flex-start}
+    .thought-mood{width:14px;text-align:center;font-size:11px;flex-shrink:0}
+    .thought-text{color:#ddd;flex:1;line-height:1.3}
+    .thought-tag{font-size:8px;color:#888;background:rgba(255,255,255,0.05);padding:1px 3px;border-radius:2px;flex-shrink:0}
+    .thought-day{font-size:8px;color:#666;flex-shrink:0}
+    .detail-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .detail-swatch{width:14px;height:14px;border-radius:3px}
+    .detail-name{font-size:13px;font-weight:700}
+    .detail-level{font-size:11px;color:#ffeaa7}
+    .price-slider-row{margin:6px 0}
+    .price-slider-row label{font-size:10px;color:#aaa;display:block;margin-bottom:2px}
+    .price-slider-row input[type=range]{width:100%;accent-color:#e94560}
+    .price-val{font-size:12px;font-weight:700;color:#ffeaa7}
+    .detail-btn{padding:5px 10px;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600;margin-top:5px;margin-right:3px;transition:all 0.15s}
+    .detail-btn.demolish{background:#d63031;color:#fff}
+    .detail-btn.demolish:hover{background:#e84118}
+    .detail-btn.repair{background:#ffa502;color:#fff}
+    .detail-btn.repair:hover{background:#e89502}
+    .detail-btn.upgrade{background:#6c5ce7;color:#fff}
+    .detail-btn.upgrade:hover{background:#5b4cc7}
+    .detail-btn.close{background:#636e72;color:#fff}
+
+    /* ── Package Config ── */
+    .package-section{margin-top:8px}
+    .package-item{background:#1a1a2e;border-radius:5px;padding:6px;margin-bottom:5px;border-left:3px solid #636e72}
+    .package-item.enabled{border-left-color:#55efc4}
+    .package-item.disabled{opacity:0.5;border-left-color:#d63031}
+    .package-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+    .package-name{font-size:11px;font-weight:700}
+    .package-toggle{padding:2px 6px;border:1px solid #555;border-radius:3px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:9px;font-weight:700}
+    .package-toggle.on{background:#00b894;color:#fff;border-color:#00b894}
+    .package-price-row{display:flex;align-items:center;gap:4px;margin-top:3px}
+    .package-price-row input{width:50px;background:#0f3460;border:1px solid #555;border-radius:3px;color:#ffeaa7;font-size:11px;font-weight:700;padding:2px 4px;text-align:center}
+    .package-price-row label{font-size:9px;color:#aaa}
+    .package-includes{font-size:9px;color:#aaa;margin-top:2px}
+    .package-includes span{margin-right:4px}
+    .included-tag{color:#55efc4}
+    .excluded-tag{color:#636e72}
+    .package-item.locked{opacity:0.4;border-left-color:#636e72}
+    .lock-badge{font-size:9px;color:#ffa502;font-weight:700;background:rgba(255,165,2,0.15);padding:1px 5px;border-radius:3px}
+
+    /* ── Offerings Config ── */
+    .offerings-section{margin-top:8px}
+    .offering-item{background:#1a1a2e;border-radius:5px;padding:6px;margin-bottom:5px;border-left:3px solid #636e72}
+    .offering-item.enabled{border-left-color:#55efc4}
+    .offering-item.disabled{opacity:0.6;border-left-color:#d63031}
+    .offering-item.base{border-left-color:#74b9ff}
+    .offering-item.locked{opacity:0.35;border-left-color:#636e72}
+    .offering-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+    .offering-name{font-size:11px;font-weight:700}
+    .offering-toggle{padding:2px 6px;border:1px solid #555;border-radius:3px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:9px;font-weight:700}
+    .offering-toggle.on{background:#00b894;color:#fff;border-color:#00b894}
+    .base-tag{font-size:8px;color:#74b9ff;font-weight:700}
+    .offering-stats{font-size:9px;color:#aaa;display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+    .stat-pos{color:#55efc4}
+    .stat-neg{color:#ff6b6b}
+    .offering-segments{font-size:9px;margin-top:2px}
+    .segment-icon{font-weight:700;margin-right:4px}
+
+    /* ── Build Menu Locked ── */
+    .build-item.locked{opacity:0.4;cursor:default;pointer-events:none}
+    .build-item .unlock-req{font-size:8px;color:#ffa502;margin-top:2px}
+
+    /* ── Daily Report ── */
+    .report-item{display:flex;justify-content:space-between;font-size:9px;padding:1px 0}
+    .report-item .r-delta{font-weight:700;flex-shrink:0;margin-left:4px}
+    .report-item .r-delta.pos{color:#55efc4}
+    .report-item .r-delta.neg{color:#ff6b6b}
+    .report-cat{font-size:8px;font-weight:700;color:#e94560;text-transform:uppercase;margin-top:4px;margin-bottom:2px}
+
+    /* ── Reviews ── */
+    .review-item{padding:5px;margin-bottom:4px;border-radius:4px;background:#1a1a2e;font-size:9px;border-left:3px solid #636e72}
+    .review-item.positive{border-left-color:#55efc4}
+    .review-item.negative{border-left-color:#ff6b6b}
+    .review-item.neutral{border-left-color:#ffeaa7}
+    .review-text{font-style:italic;color:#aaa;margin-bottom:3px}
+    .review-meta{font-size:8px;color:#636e72;display:flex;justify-content:space-between}
+    .review-actions{display:flex;gap:3px;margin-top:3px}
+    .review-act-btn{padding:2px 5px;border:1px solid #555;border-radius:3px;background:transparent;cursor:pointer;font-size:8px;font-weight:600;transition:all 0.15s}
+    .review-act-btn.respond{color:#74b9ff;border-color:#74b9ff}
+    .review-act-btn.compensate{color:#55efc4;border-color:#55efc4}
+    .review-act-btn.ignore{color:#636e72;border-color:#636e72}
+    .review-act-btn:hover{opacity:0.8}
+    .heat-bar{height:6px;border-radius:3px;background:#1a1a2e;overflow:hidden;margin:4px 0}
+    .heat-fill{height:100%;border-radius:3px;transition:width 0.3s}
+
+    /* ── Staff ── */
+    .staff-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;font-size:10px}
+    .staff-controls{display:flex;gap:3px;align-items:center}
+    .staff-btn{width:18px;height:18px;border:1px solid #555;border-radius:3px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+    .staff-btn:hover{background:#333}
+    .staff-btn:disabled{opacity:0.3;cursor:default}
+    .staff-salary-lbl{font-size:8px;color:#aaa}
+    .staff-salary-row{display:flex;align-items:center;margin-bottom:3px;padding:0 2px}
+    .staff-slider{width:100%;height:10px;-webkit-appearance:none;appearance:none;background:#1a1a2e;border-radius:4px;outline:none;cursor:pointer}
+    .staff-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#55efc4;border-radius:50%;cursor:pointer}
+    .staff-slider::-moz-range-thumb{width:12px;height:12px;background:#55efc4;border-radius:50%;cursor:pointer;border:none}
+    .staff-req-msg{font-size:8px;color:#ffa502;margin-bottom:3px;display:none}
+
+    /* ── Story Modal ── */
+    #story-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:200}
+    #story-overlay.visible{display:flex}
+    .story-card{background:#16213e;border:2px solid #e94560;border-radius:10px;padding:20px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
+    .story-title{font-size:16px;font-weight:700;color:#ffeaa7;margin-bottom:8px}
+    .story-desc{font-size:12px;color:#ddd;line-height:1.5;margin-bottom:14px}
+    .story-option{display:block;width:100%;padding:8px 12px;margin-bottom:6px;border:1px solid #555;border-radius:6px;background:#0f3460;color:#eee;cursor:pointer;font-size:11px;font-weight:600;text-align:left;transition:all 0.15s}
+    .story-option:hover{background:#1a3a6e;border-color:#e94560}
+
+    /* ── Marketing ── */
+    .campaign-card{padding:5px 6px;margin-bottom:4px;border-radius:4px;background:#1a1a2e;font-size:9px;display:flex;justify-content:space-between;align-items:center;gap:4px}
+    .campaign-card.active-campaign{border-left:3px solid #55efc4;background:#0f3460}
+    .campaign-card.locked{opacity:0.5}
+    .campaign-name{font-weight:700;font-size:10px}
+    .campaign-stats{color:#aaa;font-size:8px}
+    .campaign-btn{padding:2px 8px;border:none;border-radius:3px;cursor:pointer;font-size:9px;font-weight:700}
+    .campaign-btn.launch{background:#0984e3;color:#fff}
+    .campaign-btn.launch:hover{background:#0873cc}
+    .campaign-btn:disabled{background:#444;color:#666;cursor:default}
+    .marketing-active-total{font-size:9px;color:#55efc4;font-weight:700;margin-bottom:4px;padding:3px 6px;background:rgba(85,239,196,0.1);border-radius:3px}
+
+    /* ── Contracts ── */
+    .contract-item{padding:6px;margin-bottom:5px;border-radius:5px;background:#1a1a2e;border-left:3px solid #636e72;font-size:9px}
+    .contract-item.available{border-left-color:#ffeaa7}
+    .contract-item.active{border-left-color:#a29bfe}
+    .contract-item.completed{border-left-color:#55efc4;opacity:0.6}
+    .contract-item.failed{border-left-color:#ff6b6b;opacity:0.5}
+    .contract-title{font-weight:700;font-size:10px;margin-bottom:2px}
+    .contract-desc{color:#aaa;margin-bottom:3px}
+    .contract-progress{display:flex;align-items:center;gap:4px;margin-top:3px}
+    .contract-btn{padding:2px 6px;border:1px solid;border-radius:3px;background:transparent;cursor:pointer;font-size:8px;font-weight:700;margin-right:3px}
+    .contract-btn.accept{color:#55efc4;border-color:#55efc4}
+    .contract-btn.decline{color:#ff6b6b;border-color:#ff6b6b}
+    .contract-btn:hover{opacity:0.8}
+
+    /* ── Segment Why Tooltip ── */
+    .seg-why{font-size:8px;cursor:help;color:#636e72;margin-left:2px}
+    .seg-why:hover{color:#ffeaa7}
+
+    #bottom-bar{padding:8px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #333;flex-wrap:wrap}
+    .action-btns{display:flex;gap:6px}
+    button.action{padding:6px 14px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.5px}
+    button.action:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,0.3)}
+    button.action.cancel{background:#636e72;color:#fff}
+    button.action.danger{background:#d63031;color:#fff}
+    button.action.next-day{background:#00b894;color:#fff}
+
+    #toast{position:fixed;bottom:20px;right:20px;background:#2d3436;color:#fff;padding:12px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.4);opacity:0;transform:translateY(20px);transition:all 0.3s;pointer-events:none;max-width:300px;font-size:12px;z-index:100}
+    #toast.show{opacity:1;transform:translateY(0)}
+    #toast.error{background:#d63031}
+    #toast.success{background:#00b894}
+    #toast.event{background:#6c5ce7}
+    #toast.warning{background:#fdcb6e;color:#2d3436}
+
+    #tutorial-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:200;display:flex;align-items:center;justify-content:center;pointer-events:all}
+    #tutorial-bubble{background:linear-gradient(135deg,#2d3436 0%,#1e272e 100%);border:2px solid #00b894;border-radius:12px;padding:24px 32px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.6);text-align:center;animation:tutorialPop 0.3s ease-out}
+    #tutorial-text{color:#dfe6e9;font-size:14px;line-height:1.6;margin-bottom:16px}
+    #tutorial-dismiss{background:#00b894;color:#fff;border:none;border-radius:6px;padding:8px 24px;font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all 0.15s}
+    #tutorial-dismiss:hover{background:#00cec9;transform:translateY(-1px)}
+    @keyframes tutorialPop{from{opacity:0;transform:scale(0.9)}to{opacity:1;transform:scale(1)}}
+
+    #leaderboard-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:150;display:flex;align-items:center;justify-content:center}
+    #leaderboard-panel{background:linear-gradient(135deg,#2d3436 0%,#1e272e 100%);border:1px solid #444;border-radius:10px;padding:20px;width:460px;max-height:80vh;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+    #lb-table tbody tr{border-bottom:1px solid rgba(255,255,255,0.05)}
+    #lb-table tbody tr:hover{background:rgba(255,255,255,0.03)}
+    #lb-table td{padding:4px;color:#dfe6e9}
+    #lb-table td:first-child{color:#fdcb6e;font-weight:700}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="hud">
+      <div class="hud-left">
+        <div class="hud-metrics">
+          <div class="metric" style="position:relative">
+            <span class="metric-label" id="hud-rep-label" style="cursor:pointer" title="Click to see breakdown">Reputation <span id="hud-star-tier" style="font-size:10px;color:#fdcb6e">★1</span> <span id="hud-rep-toggle" style="font-size:8px;color:#888;margin-left:2px">▼</span></span>
+            <span class="metric-value" id="hud-reputation" style="color:#ffeaa7">15</span>
+            <div class="metric-bar"><div class="metric-bar-fill" id="hud-rep-bar" style="width:15%;background:#ffeaa7"></div></div>
+            <div id="hud-rep-breakdown" style="display:none;margin-top:4px;padding:4px 0;border-top:1px solid rgba(255,255,255,0.08)">
+              <div class="rep-row"><span class="rep-icon">🌴</span><span class="rep-name">Beauty</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-beauty" style="width:20%"></div></div><span class="rep-val" id="rep-beauty-val">20</span></div>
+              <div class="rep-row"><span class="rep-icon">🛡</span><span class="rep-name">Safety</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-safety" style="width:30%"></div></div><span class="rep-val" id="rep-safety-val">30</span></div>
+              <div class="rep-row"><span class="rep-icon">🎯</span><span class="rep-name">Fun</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-fun" style="width:15%"></div></div><span class="rep-val" id="rep-fun-val">15</span></div>
+              <div class="rep-row"><span class="rep-icon">💰</span><span class="rep-name">Value</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-value" style="width:40%"></div></div><span class="rep-val" id="rep-value-val">40</span></div>
+              <div class="rep-row"><span class="rep-icon">🌙</span><span class="rep-name">Nightlife</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-nightlife" style="width:10%"></div></div><span class="rep-val" id="rep-nightlife-val">10</span></div>
+              <div class="rep-row"><span class="rep-icon">✨</span><span class="rep-name">Clean</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-cleanliness" style="width:30%"></div></div><span class="rep-val" id="rep-cleanliness-val">30</span></div>
+              <div class="rep-row"><span class="rep-icon">🍽</span><span class="rep-name">Food</span><div class="rep-bar-bg"><div class="rep-bar-fill" id="rep-foodQuality" style="width:15%"></div></div><span class="rep-val" id="rep-foodQuality-val">15</span></div>
+            </div>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Occupancy</span>
+            <span class="metric-value" id="hud-occupancy" style="color:#74b9ff">0%</span>
+            <div class="metric-bar"><div class="metric-bar-fill" id="hud-occ-bar" style="width:0%;background:#74b9ff"></div></div>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Experience</span>
+            <span class="metric-value" id="hud-experience" style="color:#55efc4">50</span>
+            <div class="metric-bar"><div class="metric-bar-fill" id="hud-exp-bar" style="width:50%;background:#55efc4"></div></div>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Cash</span>
+            <span class="metric-value" id="hud-cash" style="color:#55efc4">$350</span>
+            <span style="font-size:9px;color:#aaa" id="hud-runway"></span>
+          </div>
+        </div>
+        <div class="hud-compact">
+          <span id="hud-day">Day 1</span>
+          <span id="hud-weather">☀️</span>
+          <span id="hud-guests">0 guests</span>
+          <span id="hud-power">⚡0/2</span>
+          <span id="hud-litter" style="color:#aaa" title="Litter on ground">🗑 0</span>
+        </div>
+      </div>
+      <div class="speed-controls">
+        <button class="speed-btn" data-speed="0">⏸</button>
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="3">3x</button>
+      </div>
+      <div class="zoom-controls" style="display:flex;align-items:center;gap:4px;margin-left:8px">
+        <button class="speed-btn" id="btn-zoom-out" title="Zoom Out (-)">−</button>
+        <span id="hud-zoom" style="font-size:10px;color:#aaa;min-width:36px;text-align:center">100%</span>
+        <button class="speed-btn" id="btn-zoom-in" title="Zoom In (+)">+</button>
+      </div>
+    </div>
+
+    <div id="main-layout">
+      <!-- Left Panel -->
+      <div id="left-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active" id="tab-build"><span class="tab-icon">🔨</span> Build</button>
+          <button class="panel-tab" id="tab-missions"><span class="tab-icon">🎯</span> Goals</button>
+          <button class="panel-tab" id="tab-events"><span class="tab-icon">📋</span> Events</button>
+        </div>
+        <div class="panel-content active" id="panel-build">
+          <div class="category-tabs" id="category-tabs"></div>
+          <div id="build-list"></div>
+          <div style="border-top:1px solid #1a1a2e;padding:6px 8px;margin-top:4px">
+            <button id="btn-build-path" class="speed-btn" style="width:100%;padding:6px;font-size:11px;background:#bfbfaa;color:#2d3436;border:none;border-radius:4px;cursor:pointer;margin-bottom:4px">🛤 BUILD PATH ($1)</button>
+            <button id="btn-place-bin" class="speed-btn" style="width:100%;padding:6px;font-size:11px;background:#636e72;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-bottom:4px">🗑 TRASH BIN ($15)</button>
+            <button id="btn-buy-land" class="speed-btn" style="width:100%;padding:6px;font-size:11px;background:#0984e3;color:#fff;border:none;border-radius:4px;cursor:pointer">🗺 BUY LAND</button>
+            <div id="buy-land-info" style="display:none;font-size:9px;color:#aaa;margin-top:4px;padding:4px;background:rgba(9,132,227,0.1);border-radius:3px">
+              Click on greyed-out land to buy (4×4 parcels).<br>
+              Beachfront: $200/tile | Mid: $100/tile | Far: $50/tile<br>
+              <button id="btn-cancel-land" style="margin-top:4px;padding:2px 8px;font-size:9px;background:#636e72;color:#fff;border:none;border-radius:3px;cursor:pointer">Cancel</button>
+            </div>
+            <div style="font-size:8px;color:#555;margin-top:4px">Pan: WASD / Arrow keys / Right-click drag</div>
+          </div>
+        </div>
+        <div class="panel-content" id="panel-missions">
+          <div class="panel-title">Missions</div>
+          <div id="missions-list"></div>
+        </div>
+        <div class="panel-content" id="panel-events">
+          <div class="panel-title">Event Log</div>
+          <div id="events-list"></div>
+        </div>
+      </div>
+
+      <button class="panel-collapse-btn" id="btn-toggle-left" title="Toggle left panel">«</button>
+      <div id="canvas-container">
+        <canvas id="game-canvas" width="1008" height="714"></canvas>
+      </div>
+      <button class="panel-collapse-btn" id="btn-toggle-right" title="Toggle right panel">»</button>
+
+      <!-- Right Panel: Accordion -->
+      <div id="info-panel">
+        <div id="info-default">
+          <!-- Day progress (always visible, compact) -->
+          <div style="padding:6px 10px;border-bottom:1px solid #1a1a2e">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-bottom:3px">
+              <span id="hud-day2">Day 1</span>
+              <span id="hud-weather2">☀️</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="day-progress-bar" style="width:0%;background:#e94560"></div></div>
+          </div>
+
+          <!-- FINANCE accordion -->
+          <div class="acc-section open" id="acc-finance">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">💰</span>
+              <span class="acc-title">Finance</span>
+              <span class="acc-summary" id="fin-net-summary" style="color:#55efc4">+$0</span>
+            </div>
+            <div class="acc-body">
+              <div class="info-row"><span class="label">Rooms</span><span class="value positive" id="fin-room">$0</span></div>
+              <div class="info-row"><span class="label">Resort Fee</span><span class="value positive" id="fin-resort-fee">$0</span></div>
+              <div class="info-row"><span class="label">Ancillary</span><span class="value positive" id="fin-ancillary">$0</span></div>
+              <div class="info-row"><span class="label">Day-Pass</span><span class="value positive" id="fin-daypass">$0</span></div>
+              <div class="info-row"><span class="label">Maint.</span><span class="value negative" id="fin-maint">-$0</span></div>
+              <div class="info-row" id="fin-staff-row" style="display:none"><span class="label">Staff</span><span class="value negative" id="fin-staff">-$0</span></div>
+              <div class="info-row" id="fin-interest-row" style="display:none"><span class="label">Loan Pmt</span><span class="value negative" id="fin-interest">-$0</span></div>
+              <div class="info-row" style="border-top:1px solid #333;padding-top:3px;margin-top:3px">
+                <span class="label" style="font-weight:700">Net</span>
+                <span class="value" id="fin-net" style="font-size:12px">$0</span>
+              </div>
+              <div style="margin-top:4px;padding:3px 6px;background:rgba(253,203,110,0.1);border-radius:3px;font-size:9px;color:#aaa">
+                <div>★ Tier: <span id="fin-star-tier">1</span> — Maint. ×<span id="fin-maint-mult">0.15</span>, Rooms ×<span id="fin-room-mult">1.0</span></div>
+              </div>
+              <div style="margin-top:4px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:3px">
+                <div style="font-size:8px;color:#888;text-transform:uppercase;margin-bottom:3px">Revenue Split</div>
+                <div style="display:flex;height:8px;border-radius:3px;overflow:hidden;background:#333" id="revenue-split-bar">
+                  <div id="rev-bar-rooms" style="background:#d63031;height:100%;transition:width 0.3s"></div>
+                  <div id="rev-bar-ancillary" style="background:#fdcb6e;height:100%;transition:width 0.3s"></div>
+                  <div id="rev-bar-amenities" style="background:#74b9ff;height:100%;transition:width 0.3s"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:8px;color:#aaa;margin-top:2px">
+                  <span><span style="color:#d63031">■</span> Rooms <span id="rev-pct-rooms">0%</span></span>
+                  <span><span style="color:#fdcb6e">■</span> Ancillary <span id="rev-pct-ancillary">0%</span></span>
+                  <span><span style="color:#74b9ff">■</span> Other <span id="rev-pct-amenities">0%</span></span>
+                </div>
+                <div style="font-size:7px;color:#636e72;margin-top:1px">Target: Rooms 60-75% | Ancillary 20-30% | Other ≤10%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GUESTS accordion -->
+          <div class="acc-section" id="acc-guests">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">👥</span>
+              <span class="acc-title">Guests</span>
+              <span class="acc-summary" id="guests-summary">0</span>
+            </div>
+            <div class="acc-body">
+              <div class="info-row"><span class="label">Total</span><span class="value" id="info-guest-count">0</span></div>
+              <div class="info-row"><span class="label">Happiness</span><span class="value" id="info-happiness">-</span></div>
+              <div class="info-row"><span class="label">Top Need</span><span class="value" id="info-top-need">-</span></div>
+              <div class="info-row"><span class="label">Visiting</span><span class="value" id="info-visiting" style="color:#a29bfe">0</span></div>
+              <div class="info-row"><span class="label">Served</span><span class="value" id="info-served">0</span></div>
+              <div class="info-row"><span class="label">Extended Stay</span><span class="value" id="info-stay-extended" style="color:#55efc4">0</span></div>
+              <div class="info-row"><span class="label">Pkg Upgraded</span><span class="value" id="info-pkg-upgraded" style="color:#fdcb6e">0</span></div>
+              <div class="info-row"><span class="label">Avg Stay Bonus</span><span class="value" id="info-avg-stay-bonus" style="color:#74b9ff">-</span></div>
+              <div class="segment-legend" id="segment-legend"></div>
+              <div id="arrival-factors" style="margin-top:6px;padding-top:5px;border-top:1px solid #333;font-size:9px;color:#aaa"></div>
+            </div>
+          </div>
+
+          <!-- RESORT accordion -->
+          <div class="acc-section" id="acc-resort">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">🏨</span>
+              <span class="acc-title">Resort</span>
+              <span class="acc-summary" id="resort-summary">0 bldg</span>
+            </div>
+            <div class="acc-body">
+              <div class="info-row"><span class="label">Buildings</span><span class="value" id="info-buildings">0</span></div>
+              <div class="info-row"><span class="label">Building</span><span class="value" id="info-constructing" style="color:#fdcb6e">0</span></div>
+              <div class="info-row"><span class="label">Beds</span><span class="value" id="info-accom-slots">0</span></div>
+              <div class="info-row"><span class="label">Occupancy</span><span class="value" id="info-occupancy">0%</span></div>
+              <!-- Day Pass inline -->
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #333">
+                <div class="daypass-row">
+                  <span style="font-size:10px;font-weight:600">Day Pass</span>
+                  <button class="daypass-toggle" id="btn-daypass-toggle">OFF</button>
+                  <span style="font-size:9px;color:#aaa">$</span>
+                  <input type="number" class="daypass-price-input" id="daypass-price-input" value="5" min="1" max="50">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LOANS accordion -->
+          <div class="acc-section" id="acc-loans">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">🏦</span>
+              <span class="acc-title">Loans</span>
+              <span class="acc-summary" id="loans-summary"></span>
+            </div>
+            <div class="acc-body">
+              <div id="loan-list"></div>
+              <div id="loan-options"></div>
+            </div>
+          </div>
+
+          <!-- MARKETING accordion -->
+          <div class="acc-section" id="acc-marketing">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">📢</span>
+              <span class="acc-title">Marketing</span>
+              <span class="acc-summary" id="marketing-summary">0 active</span>
+            </div>
+            <div class="acc-body" id="marketing-body">
+              <div id="marketing-active" style="margin-bottom:6px"></div>
+              <div id="marketing-available"></div>
+            </div>
+          </div>
+
+          <!-- STAFF accordion -->
+          <div class="acc-section" id="acc-staff">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">👷</span>
+              <span class="acc-title">Staff</span>
+              <span class="acc-summary" id="staff-summary">0 hired</span>
+            </div>
+            <div class="acc-body" id="staff-panel-body">
+              <div class="staff-row">
+                <span>🧹 Cleaners <span class="staff-salary-lbl" id="cleaner-salary-lbl">$3/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-cleaner">-</button>
+                  <span id="staff-cleaner-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-cleaner">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="20" max="200" value="80" step="5" class="staff-slider" id="slider-cleaner"></div>
+              <div id="cleaner-req" class="staff-req-msg"></div>
+
+              <div class="staff-row">
+                <span>🎭 Animators <span class="staff-salary-lbl" id="animator-salary-lbl">$5/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-animator">-</button>
+                  <span id="staff-animator-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-animator">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="20" max="300" value="120" step="5" class="staff-slider" id="slider-animator"></div>
+              <div id="animator-req" class="staff-req-msg"></div>
+
+              <div class="staff-row">
+                <span>🔨 Builders <span class="staff-salary-lbl" id="builder-salary-lbl">$4/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-builder">-</button>
+                  <span id="staff-builder-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-builder">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="20" max="250" value="100" step="5" class="staff-slider" id="slider-builder"></div>
+              <div id="builder-req" class="staff-req-msg"></div>
+
+              <div class="staff-row">
+                <span>🔧 Mechanics <span class="staff-salary-lbl" id="mechanic-salary-lbl">$4/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-mechanic">-</button>
+                  <span id="staff-mechanic-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-mechanic">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="20" max="250" value="100" step="5" class="staff-slider" id="slider-mechanic"></div>
+              <div id="mechanic-req" class="staff-req-msg"></div>
+
+              <div class="staff-row">
+                <span>🏊 Lifeguards <span class="staff-salary-lbl" id="lifeguard-salary-lbl">$5/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-lifeguard">-</button>
+                  <span id="staff-lifeguard-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-lifeguard">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="20" max="300" value="120" step="5" class="staff-slider" id="slider-lifeguard"></div>
+              <div id="lifeguard-req" class="staff-req-msg"></div>
+
+              <div class="staff-row">
+                <span>🛡 Security <span class="staff-salary-lbl" id="security-salary-lbl">$6/d</span></span>
+                <div class="staff-controls">
+                  <button class="staff-btn" id="btn-fire-security">-</button>
+                  <span id="staff-security-count" style="min-width:14px;text-align:center;font-weight:700">0</span>
+                  <button class="staff-btn" id="btn-hire-security">+</button>
+                </div>
+              </div>
+              <div class="staff-salary-row"><input type="range" min="30" max="300" value="150" step="5" class="staff-slider" id="slider-security"></div>
+              <div id="security-req" class="staff-req-msg"></div>
+
+              <div style="font-size:8px;color:#aaa;margin-top:4px">Hire cost: 5× daily salary. Drag slider to adjust pay.</div>
+            </div>
+          </div>
+
+          <!-- REVIEWS accordion -->
+          <div class="acc-section" id="acc-reviews">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">⭐</span>
+              <span class="acc-title">Reviews</span>
+              <span class="acc-summary" id="reviews-summary">0</span>
+            </div>
+            <div class="acc-body">
+              <div style="font-size:9px;margin-bottom:4px" title="Online visibility. High heat = more guests arrive. But negative reviews + high heat = viral backlash risk!">
+                <span style="color:#aaa">Social Heat:</span>
+                <span id="social-heat-val" style="font-weight:700;color:#ffa502">0</span>
+                <span id="social-heat-effect" style="color:#55efc4;font-size:8px;margin-left:4px"></span>
+              </div>
+              <div class="heat-bar"><div class="heat-fill" id="social-heat-bar" style="width:0%;background:#ffa502"></div></div>
+              <div id="reviews-list"></div>
+            </div>
+          </div>
+
+          <!-- DAILY REPORT accordion -->
+          <div class="acc-section" id="acc-report">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">📊</span>
+              <span class="acc-title">Daily Report</span>
+              <span class="acc-summary" id="report-summary"></span>
+            </div>
+            <div class="acc-body">
+              <div id="report-list"></div>
+            </div>
+          </div>
+
+          <!-- CONTRACTS accordion -->
+          <div class="acc-section" id="acc-contracts">
+            <div class="acc-header">
+              <span class="acc-toggle">▶</span>
+              <span class="acc-icon">📜</span>
+              <span class="acc-title">Contracts</span>
+              <span class="acc-summary" id="contracts-summary">0</span>
+            </div>
+            <div class="acc-body">
+              <div id="contracts-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Building Detail (replaces info-default when a building is selected) -->
+        <div id="building-detail">
+          <div class="detail-header">
+            <div class="detail-swatch" id="detail-swatch"></div>
+            <span class="detail-name" id="detail-name">-</span>
+            <span class="detail-level" id="detail-level"></span>
+          </div>
+          <div style="margin-bottom:8px">
+            <div class="info-row"><span class="label">Status</span><span class="value" id="detail-status">-</span></div>
+            <div class="info-row"><span class="label">Guests</span><span class="value" id="detail-guests">-</span></div>
+            <div class="info-row"><span class="label">Maint.</span><span class="value negative" id="detail-maint">-</span></div>
+            <div class="info-row"><span class="label">Income</span><span class="value positive" id="detail-income">-</span></div>
+            <div class="info-row"><span class="label">Power</span><span class="value" id="detail-power">-</span></div>
+            <div class="info-row"><span class="label">Adjacency</span><span class="value" id="detail-adjacency">-</span></div>
+            <div class="info-row"><span class="label">Role</span><span class="value" id="detail-role" style="font-size:9px">-</span></div>
+            <div id="detail-behavior-section" style="display:none;margin-top:4px;padding:4px;background:rgba(255,255,255,0.05);border-radius:4px">
+              <div style="font-size:9px;color:#e94560;text-transform:uppercase;margin-bottom:2px">Guest Effects</div>
+              <div id="detail-behavior-mods" style="font-size:10px;color:#aaa;line-height:1.4"></div>
+            </div>
+          </div>
+          <div id="event-program-section" style="display:none;margin-top:4px;padding:4px;background:rgba(255,255,255,0.05);border-radius:4px">
+            <div style="font-size:9px;color:#e84393;text-transform:uppercase;margin-bottom:4px">Event Program</div>
+            <div id="event-program-list" style="font-size:10px;line-height:1.6"></div>
+          </div>
+          <div class="price-slider-row" id="price-slider-section">
+            <label>Price: <span class="price-val" id="price-val">1.0x</span></label>
+            <input type="range" id="price-slider" min="5" max="20" value="10" step="1">
+          </div>
+          <div class="package-section" id="package-section" style="display:none">
+            <h3 style="font-size:10px;color:#e94560;text-transform:uppercase;margin-bottom:6px">Packages</h3>
+            <div id="package-list"></div>
+          </div>
+          <div class="offerings-section" id="offerings-section" style="display:none">
+            <h3 style="font-size:10px;color:#e94560;text-transform:uppercase;margin-bottom:6px">Services & Offerings</h3>
+            <div id="offerings-list"></div>
+          </div>
+          <div id="detail-construction" style="display:none;margin-top:6px">
+            <div style="font-size:9px;color:#aaa;margin-bottom:2px">Construction</div>
+            <div class="progress-bar"><div class="progress-fill" id="construction-progress-bar" style="width:0%;background:#fdcb6e"></div></div>
+            <div style="font-size:10px;color:#aaa;margin-top:2px" id="construction-pct">0%</div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="detail-btn upgrade" id="btn-upgrade" style="display:none">Upgrade</button>
+            <button class="detail-btn repair" id="btn-repair" style="display:none">Repair</button>
+            <button class="detail-btn demolish" id="btn-demolish">Sell (55%)</button>
+            <button class="detail-btn close" id="btn-close-detail">Close</button>
+          </div>
+        </div>
+
+        <!-- Guest Detail (replaces info-default when a guest is selected) -->
+        <div id="guest-detail">
+          <div class="guest-header">
+            <div class="guest-segment-icon" id="guest-seg-icon"></div>
+            <span class="guest-name" id="guest-name">Guest #0</span>
+            <span class="guest-vip-badge" id="guest-vip" style="display:none">VIP</span>
+          </div>
+          <div>
+            <div class="guest-info-row"><span class="label">Happiness</span><span class="value" id="guest-happiness-val">50%</span></div>
+            <div class="guest-happiness-bar"><div class="guest-happiness-fill" id="guest-happiness-bar" style="width:50%;background:#00b894"></div></div>
+            <div class="guest-info-row"><span class="label">Money</span><span class="value" id="guest-money">$0</span></div>
+            <div class="guest-info-row"><span class="label">Stay</span><span class="value" id="guest-stay">Day 1 of 3</span></div>
+            <div class="guest-info-row"><span class="label">Segment</span><span class="value" id="guest-segment">Budget</span></div>
+            <div class="guest-info-row"><span class="label">Package</span><span class="value" id="guest-package">-</span></div>
+          </div>
+          <div class="guest-needs-section">
+            <h4>Needs</h4>
+            <div id="guest-needs-list"></div>
+          </div>
+          <div class="thought-log-section">
+            <h4>Thought Log</h4>
+            <div id="guest-thought-log"></div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="detail-btn close" id="btn-close-guest">Close</button>
+          </div>
+        </div>
+
+        <!-- Staff Detail (replaces info-default when a staff member is selected) -->
+        <div id="staff-detail">
+          <div class="staff-detail-header">
+            <div class="staff-detail-icon" id="staff-detail-icon"></div>
+            <span class="staff-detail-name" id="staff-detail-name">Cleaner #1</span>
+          </div>
+          <div class="staff-detail-row"><span class="label">Role</span><span class="value" id="staff-detail-role">Cleaner</span></div>
+          <div class="staff-detail-row"><span class="label">Daily Salary</span><span class="value" id="staff-detail-salary">$0</span></div>
+          <div class="staff-detail-row"><span class="label">Status</span><span class="value" id="staff-detail-status">Patrolling</span></div>
+          <div style="margin-top:10px">
+            <div class="staff-stat-highlight" id="staff-detail-stat">0</div>
+            <div class="staff-stat-label" id="staff-detail-stat-label">Items cleaned today</div>
+          </div>
+          <div id="staff-detail-extra" style="margin-top:8px;font-size:10px;color:#aaa"></div>
+          <div style="margin-top:8px">
+            <button class="detail-btn close" id="btn-close-staff">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="bottom-bar">
+      <div class="action-btns">
+        <button class="action cancel" id="btn-cancel" disabled>Cancel Build</button>
+        <button class="action next-day" id="btn-next-day">Skip to Next Day</button>
+        <button class="action" id="btn-leaderboard" style="background:#6c5ce7;color:#fff">🏆 Leaderboard</button>
+        <button class="action danger" id="btn-reset">Reset</button>
+      </div>
+      <div id="status-text" style="font-size:11px;color:#aaa"></div>
+    </div>
+
+    <div id="leaderboard-overlay" style="display:none">
+      <div id="leaderboard-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;color:#ffeaa7;font-size:14px">🏆 Global Leaderboard</h3>
+          <button id="lb-close" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer">&times;</button>
+        </div>
+        <div id="lb-submit" style="margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.05);border-radius:6px">
+          <div style="font-size:11px;color:#aaa;margin-bottom:6px">Submit your score:</div>
+          <div style="display:flex;gap:6px">
+            <input id="lb-name" type="text" placeholder="Your name" maxlength="20" style="flex:1;padding:6px 10px;border-radius:4px;border:1px solid #444;background:#1e272e;color:#fff;font-size:11px">
+            <button id="lb-submit-btn" style="padding:6px 14px;border-radius:4px;border:none;background:#00b894;color:#fff;font-size:11px;font-weight:700;cursor:pointer">Submit</button>
+          </div>
+          <div id="lb-submit-status" style="font-size:10px;color:#aaa;margin-top:4px"></div>
+        </div>
+        <div id="lb-table-wrap" style="max-height:320px;overflow-y:auto">
+          <table id="lb-table" style="width:100%;border-collapse:collapse;font-size:10px">
+            <thead>
+              <tr style="color:#aaa;text-align:left;border-bottom:1px solid #333">
+                <th style="padding:4px">#</th>
+                <th style="padding:4px">Name</th>
+                <th style="padding:4px">★</th>
+                <th style="padding:4px">Rep</th>
+                <th style="padding:4px">Day</th>
+                <th style="padding:4px">Earned</th>
+              </tr>
+            </thead>
+            <tbody id="lb-body"></tbody>
+          </table>
+        </div>
+        <div id="lb-loading" style="text-align:center;color:#aaa;font-size:11px;padding:20px">Loading...</div>
+      </div>
+    </div>
+  </div>
+  <div id="story-overlay">
+    <div class="story-card">
+      <div class="story-title" id="story-title"></div>
+      <div class="story-desc" id="story-desc"></div>
+      <div id="story-options"></div>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <div id="tutorial-overlay" style="display:none">
+    <div id="tutorial-bubble">
+      <div id="tutorial-text"></div>
+      <button id="tutorial-dismiss">Got it</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

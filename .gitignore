@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.vercel/
+*.local
+*.iso
+Virtual_Resort_Spring_Break_Win_ISO_EN/
