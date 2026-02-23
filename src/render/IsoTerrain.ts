@@ -17,7 +17,7 @@ const WATER_DEEP = '#0984e3';
 
 const GRID_LINE_COLOR = 'rgba(0, 80, 0, 0.12)';
 
-export function drawIsoTerrain(ctx: CanvasRenderingContext2D, state: GameState, sprites?: SpriteManager): void {
+export function drawIsoTerrain(ctx: CanvasRenderingContext2D, state: GameState, _sprites?: SpriteManager): void {
   const { width, height, tiles } = state.grid;
   const waterStartY = height - WATER_ROWS;
   const beachStartY = waterStartY - BEACH_ROWS;
