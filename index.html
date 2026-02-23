@@ -807,6 +807,7 @@
         <button class="action cancel" id="btn-cancel" disabled>Cancel Build</button>
         <button class="action next-day" id="btn-next-day">Skip to Next Day</button>
         <button class="action" id="btn-leaderboard" style="background:#6c5ce7;color:#fff">🏆 Leaderboard</button>
+        <button class="action" id="btn-analytics" style="background:#00b894;color:#fff">📊 My Analytics</button>
         <button class="action danger" id="btn-reset">Reset</button>
       </div>
       <div id="status-text" style="font-size:11px;color:#aaa"></div>
@@ -845,6 +846,35 @@
       </div>
     </div>
   </div>
+  <div id="analytics-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:150;align-items:center;justify-content:center">
+    <div style="background:linear-gradient(135deg,#2d3436 0%,#1e272e 100%);border:1px solid #444;border-radius:10px;padding:20px;width:520px;max-height:80vh;box-shadow:0 8px 32px rgba(0,0,0,0.6);overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0;color:#55efc4;font-size:14px">📊 My Analytics</h3>
+        <button id="analytics-close" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer">&times;</button>
+      </div>
+      <p style="font-size:11px;color:#b2bec3;margin:0 0 12px">Download your gameplay decision log and get a personalized management skill analysis from ChatGPT.</p>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button id="btn-download-log" style="flex:1;padding:10px;border-radius:6px;border:none;background:#0984e3;color:#fff;font-size:12px;font-weight:700;cursor:pointer">⬇ Download Log (JSON)</button>
+        <button id="btn-copy-prompt" style="flex:1;padding:10px;border-radius:6px;border:none;background:#6c5ce7;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📋 Copy ChatGPT Prompt</button>
+      </div>
+      <div id="analytics-status" style="font-size:11px;color:#aaa;margin-bottom:12px"></div>
+      <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;color:#fdcb6e;font-weight:700;margin-bottom:8px">How to use:</div>
+        <ol style="font-size:10px;color:#b2bec3;margin:0;padding-left:16px;line-height:1.6">
+          <li>Click <b>"Download Log"</b> to save your gameplay decisions as JSON</li>
+          <li>Click <b>"Copy ChatGPT Prompt"</b> to copy the analysis prompt</li>
+          <li>Open <a href="https://chatgpt.com" target="_blank" style="color:#74b9ff">chatgpt.com</a> and paste the prompt</li>
+          <li>Attach the downloaded JSON file to the message</li>
+          <li>Send — get your personalized management skill analysis!</li>
+        </ol>
+      </div>
+      <details style="font-size:10px;color:#636e72">
+        <summary style="cursor:pointer;color:#aaa">Preview prompt</summary>
+        <pre id="analytics-prompt-preview" style="white-space:pre-wrap;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:200px;overflow-y:auto"></pre>
+      </details>
+    </div>
+  </div>
+
   <div id="story-overlay">
     <div class="story-card">
       <div class="story-title" id="story-title"></div>

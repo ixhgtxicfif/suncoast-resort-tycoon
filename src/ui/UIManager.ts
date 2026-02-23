@@ -52,6 +52,7 @@ export class UIManager {
     this.setupAccordions();
     this.buildFullPanel();
     this.setupLeaderboard();
+    this.setupAnalytics();
     this.updateUI();
     this.store.subscribe(() => this.updateUI());
   }
@@ -2369,6 +2370,105 @@ export class UIManager {
       }
     } catch {
       this.el('lb-submit-status').textContent = 'Network error';
+    }
+  }
+
+  // ── Analytics Panel ──────────────────────────────────────────────
+
+  private readonly CHATGPT_PROMPT = `You are an expert management consultant and behavioral analyst. I'm going to give you a complete log of my decisions in a resort management simulation game "Suncoast Resort Tycoon".
+
+Each entry in the log contains:
+- "action": what I did (e.g. PLACE_BUILDING, TAKE_LOAN, HIRE_STAFF, SET_PRICE, etc.)
+- "payload": details of the action
+- "ts": timestamp
+- "ctx": game state snapshot at decision time (day, money, reputation, guestCount, buildingCount, staffCount, loanDebt, netIncome, weather)
+
+Please analyze my decision-making patterns and provide:
+
+1. **Management Style Profile** — What type of manager am I? (e.g. aggressive growth, conservative, reactive, strategic planner, etc.)
+
+2. **Financial Management** — How well do I manage money? Do I take risks at the right time? Do I price optimally? How do I handle debt?
+
+3. **Strategic Thinking** — What's my building strategy? Do I diversify or specialize? Do I plan ahead or react to problems?
+
+4. **People Management** — How do I handle staffing decisions? Am I over/understaffed? Do I invest in salary?
+
+5. **Crisis Management** — How do I respond to events, bad reviews, and challenges? Am I proactive or reactive?
+
+6. **Key Strengths** — Top 3 management strengths I demonstrated
+
+7. **Areas for Improvement** — Top 3 weaknesses with specific recommendations
+
+8. **Real-World Advice** — Based on these patterns, what should I watch out for if I were managing a real business?
+
+Be specific, reference actual decisions from the log with day numbers. Be honest but constructive. Write in the same language as the user's game name suggests (if unclear, use English).
+
+Here is my decision log (JSON attached):`;
+
+  private setupAnalytics(): void {
+    this.el('btn-analytics').addEventListener('click', () => this.openAnalytics());
+    this.el('analytics-close').addEventListener('click', () => this.closeAnalytics());
+    this.el('analytics-overlay').addEventListener('click', (e) => {
+      if (e.target === this.el('analytics-overlay')) this.closeAnalytics();
+    });
+    this.el('btn-download-log').addEventListener('click', () => this.downloadLog());
+    this.el('btn-copy-prompt').addEventListener('click', () => this.copyPrompt());
+    this.el('analytics-prompt-preview').textContent = this.CHATGPT_PROMPT;
+  }
+
+  private openAnalytics(): void {
+    this.el('analytics-overlay').style.display = 'flex';
+    this.el('analytics-status').textContent = '';
+  }
+
+  private closeAnalytics(): void {
+    this.el('analytics-overlay').style.display = 'none';
+  }
+
+  private async downloadLog(): Promise<void> {
+    const jwt = localStorage.getItem('suncoast_jwt');
+    if (!jwt) {
+      this.el('analytics-status').textContent = 'Not signed in';
+      return;
+    }
+
+    this.el('analytics-status').textContent = 'Fetching your logs...';
+
+    try {
+      const resp = await fetch('/api/actions?mode=download', {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (!resp.ok) {
+        this.el('analytics-status').textContent = 'Failed to fetch logs';
+        return;
+      }
+      const data = await resp.json();
+
+      if (!data.entries || data.entries.length === 0) {
+        this.el('analytics-status').textContent = 'No actions recorded yet. Play the game first!';
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(data.entries, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `suncoast-log-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      this.el('analytics-status').innerHTML = '<span style="color:#55efc4">Log downloaded! (' + data.entries.length + ' actions)</span>';
+    } catch {
+      this.el('analytics-status').textContent = 'Network error';
+    }
+  }
+
+  private async copyPrompt(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.CHATGPT_PROMPT);
+      this.el('analytics-status').innerHTML = '<span style="color:#55efc4">Prompt copied to clipboard! Now paste it in ChatGPT and attach the JSON file.</span>';
+    } catch {
+      this.el('analytics-status').textContent = 'Could not copy — try selecting the prompt text manually from Preview below.';
     }
   }
 

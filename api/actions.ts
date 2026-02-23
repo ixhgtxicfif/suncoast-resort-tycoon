@@ -20,46 +20,72 @@ function verifyToken(token: string): UserPayload | null {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   let token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     token = (req.query.token as string) || '';
   }
 
-  const user = await verifyToken(token);
+  const user = verifyToken(token);
   if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  const { sessionId, entries } = body;
+  if (req.method === 'GET') {
+    const prefix = `actions/${user.sub}/`;
+    const { blobs } = await list({ prefix });
 
-  if (!sessionId || !Array.isArray(entries) || entries.length === 0) {
-    return res.status(400).json({ error: 'Invalid payload' });
+    const allEntries: any[] = [];
+    for (const blob of blobs) {
+      try {
+        const resp = await fetch(blob.url);
+        const entries = await resp.json();
+        allEntries.push(...entries);
+      } catch { /* skip broken blob */ }
+    }
+
+    allEntries.sort((a: any, b: any) => a.ts - b.ts);
+
+    return res.status(200).json({
+      userId: user.sub,
+      name: user.name,
+      totalSessions: blobs.length,
+      entries: allEntries,
+    });
   }
 
-  const blobName = `actions/${user.sub}/${sessionId}.json`;
+  if (req.method === 'POST') {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { sessionId, entries } = body;
 
-  let existing: any[] = [];
-  try {
-    const { blobs } = await list({ prefix: blobName });
-    if (blobs.length > 0) {
-      const resp = await fetch(blobs[0].url);
-      existing = await resp.json();
+    if (!sessionId || !Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'Invalid payload' });
     }
-  } catch { /* start fresh */ }
 
-  const merged = [...existing, ...entries];
+    const blobName = `actions/${user.sub}/${sessionId}.json`;
 
-  await put(blobName, JSON.stringify(merged), {
-    access: 'public',
-    contentType: 'application/json',
-  });
+    let existing: any[] = [];
+    try {
+      const { blobs } = await list({ prefix: blobName });
+      if (blobs.length > 0) {
+        const resp = await fetch(blobs[0].url);
+        existing = await resp.json();
+      }
+    } catch { /* start fresh */ }
 
-  return res.status(200).json({ ok: true, count: merged.length });
+    const merged = [...existing, ...entries];
+
+    await put(blobName, JSON.stringify(merged), {
+      access: 'public',
+      contentType: 'application/json',
+    });
+
+    return res.status(200).json({ ok: true, count: merged.length });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }
