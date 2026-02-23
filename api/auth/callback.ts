@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put, list } from '@vercel/blob';
-import { createToken, type UserPayload } from '../_jwt';
+import { createToken, type UserPayload } from './_jwt';
 
 interface GoogleTokenResponse {
   access_token: string;
