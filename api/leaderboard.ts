@@ -1,9 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put, list, del } from '@vercel/blob';
+import { verifyToken } from './_jwt';
 
 interface LeaderboardEntry {
   name: string;
-  deviceId: string;
+  email: string;
+  picture: string;
+  userId: string;
   reputation: number;
   stars: number;
   day: number;
@@ -20,19 +23,6 @@ function sanitize(str: string): string {
   return str.replace(/[<>&"']/g, '').trim().slice(0, 20);
 }
 
-function validate(entry: any): entry is LeaderboardEntry {
-  return (
-    typeof entry.name === 'string' && entry.name.trim().length > 0 &&
-    typeof entry.deviceId === 'string' && entry.deviceId.length >= 8 &&
-    typeof entry.reputation === 'number' && entry.reputation >= 0 && entry.reputation <= 100 &&
-    typeof entry.stars === 'number' && entry.stars >= 1 && entry.stars <= 5 &&
-    typeof entry.day === 'number' && entry.day > 0 && entry.day < 100000 &&
-    typeof entry.netIncome === 'number' &&
-    typeof entry.totalEarned === 'number' &&
-    typeof entry.buildings === 'number' && entry.buildings >= 0
-  );
-}
-
 async function loadEntries(): Promise<LeaderboardEntry[]> {
   try {
     const { blobs } = await list({ prefix: BLOB_NAME });
@@ -45,7 +35,6 @@ async function loadEntries(): Promise<LeaderboardEntry[]> {
 }
 
 async function saveEntries(entries: LeaderboardEntry[]): Promise<void> {
-  // Clean up old blobs
   const { blobs } = await list({ prefix: BLOB_NAME });
   for (const blob of blobs) {
     await del(blob.url);
@@ -59,7 +48,7 @@ async function saveEntries(entries: LeaderboardEntry[]): Promise<void> {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -70,20 +59,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sorted = entries
       .sort((a, b) => b.reputation - a.reputation || b.totalEarned - a.totalEarned)
       .slice(0, MAX_ENTRIES);
-    const publicEntries = sorted.map(({ deviceId: _, ...rest }) => rest);
+    const publicEntries = sorted.map(({ userId: _, ...rest }) => rest);
     return res.status(200).json(publicEntries);
   }
 
   if (req.method === 'POST') {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await verifyToken(auth.slice(7));
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-    if (!validate(body)) {
+    if (typeof body.reputation !== 'number' || body.reputation < 0 || body.reputation > 100 ||
+        typeof body.stars !== 'number' || body.stars < 1 || body.stars > 5 ||
+        typeof body.day !== 'number' || body.day <= 0 ||
+        typeof body.netIncome !== 'number' ||
+        typeof body.totalEarned !== 'number' ||
+        typeof body.buildings !== 'number') {
       return res.status(400).json({ error: 'Invalid entry data' });
     }
 
     const entry: LeaderboardEntry = {
-      name: sanitize(body.name),
-      deviceId: body.deviceId,
+      name: sanitize(user.name),
+      email: user.email,
+      picture: user.picture,
+      userId: user.sub,
       reputation: Math.round(body.reputation),
       stars: Math.round(body.stars),
       day: Math.round(body.day),
@@ -95,9 +101,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let entries = await loadEntries();
 
-    const existing = entries.findIndex(e => e.deviceId === entry.deviceId);
+    const existing = entries.findIndex(e => e.userId === entry.userId);
     if (existing >= 0) {
-      entries[existing].name = entry.name;
       if (entry.reputation > entries[existing].reputation ||
           (entry.reputation === entries[existing].reputation && entry.totalEarned > entries[existing].totalEarned)) {
         entries[existing] = entry;
@@ -111,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     await saveEntries(entries);
 
-    return res.status(200).json({ ok: true, rank: entries.findIndex(e => e.name === entry.name) + 1 });
+    return res.status(200).json({ ok: true, rank: entries.findIndex(e => e.userId === entry.userId) + 1 });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

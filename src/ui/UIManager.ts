@@ -2287,8 +2287,11 @@ export class UIManager {
     this.el('lb-loading').style.display = 'block';
     this.el('lb-table').style.display = 'none';
 
-    const saved = localStorage.getItem('suncoast_player_name');
-    if (saved) (this.el('lb-name') as HTMLInputElement).value = saved;
+    const user = (window as any).__suncoast_user;
+    if (user) {
+      (this.el('lb-name') as HTMLInputElement).value = user.name;
+      (this.el('lb-name') as HTMLInputElement).disabled = true;
+    }
 
     try {
       const resp = await fetch('/api/leaderboard');
@@ -2316,7 +2319,7 @@ export class UIManager {
     body.innerHTML = entries.map((e: any, i: number) => `
       <tr>
         <td>${i + 1}</td>
-        <td style="font-weight:600">${e.name}</td>
+        <td style="font-weight:600">${e.picture ? `<img src="${e.picture}" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px">` : ''}${e.name}</td>
         <td style="color:#fdcb6e">${'★'.repeat(e.stars)}</td>
         <td>${e.reputation}</td>
         <td>${e.day}</td>
@@ -2325,31 +2328,17 @@ export class UIManager {
     `).join('');
   }
 
-  private getDeviceId(): string {
-    let id = localStorage.getItem('suncoast_device_id');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('suncoast_device_id', id);
-    }
-    return id;
-  }
-
   private async submitScore(): Promise<void> {
-    const nameInput = this.el('lb-name') as HTMLInputElement;
-    const name = nameInput.value.trim();
-    if (!name) {
-      this.el('lb-submit-status').textContent = 'Please enter a name';
+    const jwt = localStorage.getItem('suncoast_jwt');
+    if (!jwt) {
+      this.el('lb-submit-status').textContent = 'Not signed in';
       return;
     }
-
-    localStorage.setItem('suncoast_player_name', name);
 
     const s = this.store.getState();
     const starTier = getStarTier(s.reputation);
 
     const payload = {
-      name,
-      deviceId: this.getDeviceId(),
       reputation: s.reputation,
       stars: starTier,
       day: s.day,
@@ -2363,7 +2352,10 @@ export class UIManager {
     try {
       const resp = await fetch('/api/leaderboard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
         body: JSON.stringify(payload),
       });
       const result = await resp.json();
