@@ -1,18 +1,32 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put, list } from '@vercel/blob';
-import { createToken, type UserPayload } from './_jwt';
+import { createHmac } from 'crypto';
 
-interface GoogleTokenResponse {
-  access_token: string;
-  id_token: string;
-}
-
-interface GoogleUserInfo {
+interface UserPayload {
   sub: string;
   email: string;
   name: string;
   picture: string;
 }
+
+function b64url(input: string): string {
+  return Buffer.from(input).toString('base64url');
+}
+
+function createJwt(user: UserPayload): string {
+  const secret = process.env.JWT_SECRET || 'dev-secret';
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(JSON.stringify({
+    ...user,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+  }));
+  const sig = createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url');
+  return `${header}.${payload}.${sig}`;
+}
+
+interface GoogleTokenResponse { access_token: string; id_token: string; }
+interface GoogleUserInfo { sub: string; email: string; name: string; picture: string; }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { code } = req.query;
@@ -60,44 +74,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       picture: gUser.picture,
     };
 
-    await saveUserProfile(userPayload);
+    try {
+      const blobName = `users/${userPayload.sub}.json`;
+      const { blobs } = await list({ prefix: blobName });
+      let profile: any = { ...userPayload, createdAt: Date.now(), sessions: 0 };
+      if (blobs.length > 0) {
+        try {
+          const existing = await fetch(blobs[0].url).then(r => r.json());
+          profile = { ...existing, name: userPayload.name, picture: userPayload.picture, email: userPayload.email, sessions: (existing.sessions || 0) + 1, lastLogin: Date.now() };
+        } catch { /* fresh profile */ }
+      }
+      await put(blobName, JSON.stringify(profile), { access: 'public', contentType: 'application/json' });
+    } catch { /* profile save failed, continue */ }
 
-    const jwt = await createToken(userPayload);
-
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
-
-    res.redirect(302, `${appUrl}/?token=${jwt}`);
+    const jwt = createJwt(userPayload);
+    res.redirect(302, `${baseUrl}/?token=${jwt}`);
   } catch (err: any) {
     res.status(500).json({ error: 'Auth callback failed', message: err.message });
   }
-}
-
-async function saveUserProfile(user: UserPayload): Promise<void> {
-  const blobName = `users/${user.sub}.json`;
-
-  const { blobs } = await list({ prefix: blobName });
-  let profile: any = {
-    ...user,
-    createdAt: Date.now(),
-    sessions: 0,
-  };
-
-  if (blobs.length > 0) {
-    try {
-      const existing = await fetch(blobs[0].url).then(r => r.json());
-      profile = {
-        ...existing,
-        name: user.name,
-        picture: user.picture,
-        email: user.email,
-        sessions: (existing.sessions || 0) + 1,
-        lastLogin: Date.now(),
-      };
-    } catch { /* use fresh profile */ }
-  }
-
-  await put(blobName, JSON.stringify(profile), {
-    access: 'public',
-    contentType: 'application/json',
-  });
 }
