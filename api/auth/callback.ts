@@ -20,9 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).send('Missing authorization code');
   }
 
-  const redirectUri = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}/api/auth/callback`
-    : 'http://localhost:3000/api/auth/callback';
+  const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+  const redirectUri = `${baseUrl}/api/auth/callback`;
 
   try {
     const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
@@ -65,9 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const jwt = await createToken(userPayload);
 
-    const appUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
 
     res.redirect(302, `${appUrl}/?token=${jwt}`);
   } catch (err: any) {
