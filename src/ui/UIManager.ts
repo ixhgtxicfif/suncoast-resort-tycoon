@@ -2325,6 +2325,15 @@ export class UIManager {
     `).join('');
   }
 
+  private getDeviceId(): string {
+    let id = localStorage.getItem('suncoast_device_id');
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem('suncoast_device_id', id);
+    }
+    return id;
+  }
+
   private async submitScore(): Promise<void> {
     const nameInput = this.el('lb-name') as HTMLInputElement;
     const name = nameInput.value.trim();
@@ -2340,6 +2349,7 @@ export class UIManager {
 
     const payload = {
       name,
+      deviceId: this.getDeviceId(),
       reputation: s.reputation,
       stars: starTier,
       day: s.day,

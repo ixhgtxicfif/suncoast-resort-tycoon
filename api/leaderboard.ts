@@ -3,6 +3,7 @@ import { put, list, del } from '@vercel/blob';
 
 interface LeaderboardEntry {
   name: string;
+  deviceId: string;
   reputation: number;
   stars: number;
   day: number;
@@ -22,6 +23,7 @@ function sanitize(str: string): string {
 function validate(entry: any): entry is LeaderboardEntry {
   return (
     typeof entry.name === 'string' && entry.name.trim().length > 0 &&
+    typeof entry.deviceId === 'string' && entry.deviceId.length >= 8 &&
     typeof entry.reputation === 'number' && entry.reputation >= 0 && entry.reputation <= 100 &&
     typeof entry.stars === 'number' && entry.stars >= 1 && entry.stars <= 5 &&
     typeof entry.day === 'number' && entry.day > 0 && entry.day < 100000 &&
@@ -68,7 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sorted = entries
       .sort((a, b) => b.reputation - a.reputation || b.totalEarned - a.totalEarned)
       .slice(0, MAX_ENTRIES);
-    return res.status(200).json(sorted);
+    const publicEntries = sorted.map(({ deviceId: _, ...rest }) => rest);
+    return res.status(200).json(publicEntries);
   }
 
   if (req.method === 'POST') {
@@ -80,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const entry: LeaderboardEntry = {
       name: sanitize(body.name),
+      deviceId: body.deviceId,
       reputation: Math.round(body.reputation),
       stars: Math.round(body.stars),
       day: Math.round(body.day),
@@ -91,8 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let entries = await loadEntries();
 
-    const existing = entries.findIndex(e => e.name.toLowerCase() === entry.name.toLowerCase());
+    const existing = entries.findIndex(e => e.deviceId === entry.deviceId);
     if (existing >= 0) {
+      entries[existing].name = entry.name;
       if (entry.reputation > entries[existing].reputation ||
           (entry.reputation === entries[existing].reputation && entry.totalEarned > entries[existing].totalEarned)) {
         entries[existing] = entry;
